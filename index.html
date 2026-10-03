@@ -139,9 +139,26 @@ function go(v) {
   if (v === 'stock') loadStock();
 }
 
+/* ---------- Sort: naam ke hisab se, phir size bara se chota ---------- */
+function sizeOf(n) {
+  const m = n.match(/(\d+(?:\.\d+)?)\s*(kg|ltr|liters?|litres?|l|ml|gms?|grams?|g)?(?![a-z])/i);
+  if (!m) return { base: n.toLowerCase().trim(), v: null };
+  let v = parseFloat(m[1]); const u = (m[2] || '').toLowerCase();
+  if (u === 'kg' || /^(l|ltr|liters?|litres?)$/.test(u)) v *= 1000;
+  return { base: n.slice(0, m.index).toLowerCase().trim(), v };
+}
+function sortStock(arr) {
+  return arr.slice().sort((a, b) => {
+    const x = sizeOf(a.name), y = sizeOf(b.name);
+    if (x.base !== y.base) return x.base.localeCompare(y.base);
+    if (x.v !== null && y.v !== null && x.v !== y.v) return y.v - x.v;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 /* ---------- Stock ---------- */
 async function loadStock(manual) {
-  try { const j = await api('stock'); stock = j.stock; $('dot').className = 'dot on'; renderStock(); fillList(); if (manual) toast('Stock updated'); }
+  try { const j = await api('stock'); stock = sortStock(j.stock); $('dot').className = 'dot on'; renderStock(); fillList(); if (manual) toast('Stock updated'); }
   catch (e) { $('dot').className = 'dot err'; if (manual || !stock.length) toast(e.message, true); }
 }
 function renderStock() {
@@ -191,7 +208,7 @@ async function save(type) {
   const btn = $('save' + type); btn.disabled = true; btn.textContent = 'Saving...';
   try {
     const j = await api('save', { type, party: ($('party' + type).value || '').trim(), items: carts[type] });
-    stock = j.stock; fillList(); lastBill = j; carts[type] = []; $(type === 'SALE' ? 'v-sale' : 'v-purchase')._party = '';
+    stock = sortStock(j.stock); fillList(); lastBill = j; carts[type] = []; $(type === 'SALE' ? 'v-sale' : 'v-purchase')._party = '';
     renderForm(type); renderStock();
     $('dTitle').textContent = (type === 'SALE' ? 'Sale' : 'Purchase') + ' Saved ✓';
     $('dInfo').textContent = j.billNo + ' • ' + j.date + ' ' + j.time;
