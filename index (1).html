@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>AWAIS TRADERS Inventory Management System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#e6edf3;--mut:#8b949e;--pri:#238636;--pri2:#2ea043;--acc:#58a6ff;--red:#f85149;--gold:#d4a72c;--in:#0d1117}
+@media(prefers-color-scheme:light){:root{--bg:#f6f8fa;--card:#fff;--line:#d0d7de;--tx:#1f2328;--mut:#59636e;--acc:#0969da;--red:#cf222e;--gold:#9a6700;--in:#fff}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#0b2545,#13315c);border:1px solid var(--gold);color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:13px}
+header h1{font-size:14px;margin:0;line-height:1.2;letter-spacing:.3px}header small{color:var(--mut);font-size:11px}
+.dot{margin-left:auto;width:10px;height:10px;border-radius:50%;background:var(--mut)}.dot.on{background:var(--pri2)}.dot.err{background:var(--red)}
+main{max-width:720px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px;font-weight:600}
+input,select{width:100%;background:var(--in);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:11px 12px;font-size:16px;outline:none}
+input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(88,166,255,.2)}
+.row{display:flex;gap:8px}.row>*{flex:1}.row .qty{flex:0 0 100px}
+button{border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:6px;padding:11px 14px;font-size:15px;font-weight:600;cursor:pointer}
+button.p{background:var(--pri);border-color:rgba(240,246,252,.1);color:#fff}button.p:active{background:var(--pri2)}
+button.b{background:#1f6feb;border-color:#1f6feb;color:#fff}button.w{width:100%}button:disabled{opacity:.5}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
+.tabs button{flex:1;border:0;border-radius:0;background:none;color:var(--mut);font-size:11px;padding:10px 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button span{font-size:19px}.tabs button.on{color:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--mut);font-size:12px;font-weight:600}td.n,th.n{text-align:right}
+.badge{display:inline-block;border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--mut)}
+.low{color:var(--red);font-weight:700}.ok{font-weight:700}
+.stats{display:flex;gap:10px;margin-bottom:12px}.stats div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.stats b{display:block;font-size:20px}.stats span{font-size:11px;color:var(--mut)}
+.x{color:var(--red);background:none;border:0;font-size:18px;padding:4px 8px}
+.toast{position:fixed;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom,0px));background:#161b22;color:#fff;border:1px solid var(--line);border-left:4px solid var(--pri2);padding:12px;border-radius:8px;z-index:20;display:none}
+.toast.err{border-left-color:var(--red)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}.modal.show{display:flex}
+.modal .card{max-width:420px;width:100%;margin:0}
+.empty{color:var(--mut);text-align:center;padding:18px 0}
+.hint{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">AT</div>
+  <div><h1>AWAIS TRADERS</h1><small>Inventory Management System</small></div>
+  <div class="dot" id="dot"></div>
+</header>
+
+<main>
+  <!-- STOCK -->
+  <section id="v-stock">
+    <div class="stats"><div><b id="stProd">0</b><span>Products</span></div><div><b id="stQty">0</b><span>Total Qty</span></div><div><b id="stLow">0</b><span>Low (&le;5)</span></div></div>
+    <div class="card">
+      <div class="row"><input id="q" placeholder="Search product..." oninput="renderStock()"><button class="b" style="flex:0 0 auto" onclick="loadStock(true)">&#8635;</button></div>
+      <table style="margin-top:8px"><thead><tr><th>Product</th><th class="n">Qty</th></tr></thead><tbody id="stBody"></tbody></table>
+      <div id="stEmpty" class="empty" style="display:none">Koi product nahi. Purchase se stock add karein.</div>
+      <p class="hint" id="upd"></p>
+    </div>
+    <button class="p w" onclick="stockPDF()">&#128196; Stock Report PDF</button>
+  </section>
+
+  <!-- SALE / PURCHASE -->
+  <section id="v-sale" hidden></section>
+  <section id="v-purchase" hidden></section>
+
+  <!-- HISTORY -->
+  <section id="v-hist" hidden>
+    <div class="card"><h2>Recent Transactions</h2>
+      <table><thead><tr><th>Bill</th><th>Product</th><th class="n">Qty</th></tr></thead><tbody id="hBody"></tbody></table>
+      <div id="hEmpty" class="empty" style="display:none">Koi record nahi.</div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="v-set" hidden>
+    <div class="card"><h2>Settings</h2>
+      <label>Google Apps Script Web App URL</label><input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <label>Secret Key (Code.gs wali SECRET)</label><input id="cfgKey" type="password">
+      <button class="p w" style="margin-top:14px" onclick="saveCfg()">Save &amp; Connect</button>
+    </div>
+  </section>
+</main>
+
+<div class="tabs">
+  <button id="t-stock" onclick="go('stock')"><span>&#128230;</span>Stock</button>
+  <button id="t-sale" onclick="go('sale')"><span>&#128722;</span>Sale</button>
+  <button id="t-purchase" onclick="go('purchase')"><span>&#128666;</span>Purchase</button>
+  <button id="t-hist" onclick="go('hist')"><span>&#128339;</span>History</button>
+  <button id="t-set" onclick="go('set')"><span>&#9881;</span>Settings</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="done"><div class="card">
+  <h2 id="dTitle">Saved</h2><p id="dInfo" class="hint"></p>
+  <button class="p w" onclick="dlBill()">&#11015; Download PDF</button>
+  <button class="b w" style="margin-top:8px" onclick="shareBill()">&#128228; Share PDF</button>
+  <button class="w" style="margin-top:8px" onclick="closeDone()">Close</button>
+</div></div>
+
+<script>
+const COMPANY = 'AWAIS TRADERS';
+const APP = 'AWAIS TRADERS INVENTORY MANAGEMENT SYSTEM';
+const $ = id => document.getElementById(id);
+let cfg = { url: localStorage.getItem('at_url') || '', key: localStorage.getItem('at_key') || '' };
+let stock = [], carts = { SALE: [], PURCHASE: [] }, lastBill = null, view = 'stock', timer;
+
+/* ---------- API ---------- */
+async function api(action, payload) {
+  if (!cfg.url) throw new Error('Pehle Settings mein URL daalein');
+  let r;
+  if (payload) r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify({ key: cfg.key, action, ...payload }) });
+  else r = await fetch(cfg.url + '?action=' + action + '&key=' + encodeURIComponent(cfg.key));
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Error');
+  return j;
+}
+function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 3500); }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- Navigation ---------- */
+function go(v) {
+  view = v;
+  ['stock', 'sale', 'purchase', 'hist', 'set'].forEach(k => { $('v-' + k).hidden = k !== v; $('t-' + k).classList.toggle('on', k === v); });
+  if (v === 'sale') renderForm('SALE'); if (v === 'purchase') renderForm('PURCHASE');
+  if (v === 'hist') loadHist();
+  if (v === 'stock') loadStock();
+}
+
+/* ---------- Stock ---------- */
+async function loadStock(manual) {
+  try { const j = await api('stock'); stock = j.stock; $('dot').className = 'dot on'; renderStock(); fillList(); if (manual) toast('Stock updated'); }
+  catch (e) { $('dot').className = 'dot err'; if (manual || !stock.length) toast(e.message, true); }
+}
+function renderStock() {
+  const q = $('q').value.toLowerCase();
+  const list = stock.filter(p => p.name.toLowerCase().includes(q));
+  $('stBody').innerHTML = list.map(p => `<tr><td>${esc(p.name)}</td><td class="n ${p.qty <= 5 ? 'low' : 'ok'}">${p.qty}</td></tr>`).join('');
+  $('stEmpty').style.display = list.length ? 'none' : 'block';
+  $('stProd').textContent = stock.length; $('stQty').textContent = stock.reduce((a, p) => a + p.qty, 0); $('stLow').textContent = stock.filter(p => p.qty <= 5).length;
+  $('upd').textContent = 'Live stock • updated ' + new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi' });
+}
+function fillList() {
+  let dl = $('plist'); if (!dl) { dl = document.createElement('datalist'); dl.id = 'plist'; document.body.appendChild(dl); }
+  dl.innerHTML = stock.map(p => `<option value="${esc(p.name)}">`).join('');
+}
+
+/* ---------- Sale / Purchase form ---------- */
+function renderForm(type) {
+  const s = type === 'SALE', el = $(s ? 'v-sale' : 'v-purchase'), c = carts[type];
+  el.innerHTML = `<div class="card"><h2>${s ? 'New Sale' : 'New Purchase'}</h2>
+    <label>${s ? 'Customer' : 'Supplier'} (optional)</label><input id="party${type}" placeholder="Name">
+    <label>Product</label>
+    <div class="row"><input id="pn${type}" list="plist" placeholder="Product name" autocomplete="off"><input class="qty" id="pq${type}" type="number" inputmode="numeric" min="1" placeholder="Qty"></div>
+    <button class="b w" style="margin-top:10px" onclick="addItem('${type}')">+ Add Item</button></div>
+    <div class="card"><h2>Items (${c.length})</h2>
+    ${c.length ? `<table><tbody>${c.map((i, n) => `<tr><td>${esc(i.name)}${s && stockOf(i.name) !== null ? ` <span class="badge">stock ${stockOf(i.name)}</span>` : ''}</td><td class="n"><b>${i.qty}</b></td><td class="n"><button class="x" onclick="rmItem('${type}',${n})">&times;</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Koi item nahi</div>'}
+    </div>
+    <button class="p w" id="save${type}" onclick="save('${type}')" ${c.length ? '' : 'disabled'}>&#10003; Save ${s ? 'Sale' : 'Purchase'} &amp; Bill PDF</button>`;
+  el._party = el._party || ''; if (el._party) $('party' + type).value = el._party;
+  $('party' + type).oninput = e => el._party = e.target.value;
+}
+const stockOf = n => { const p = stock.find(x => x.name.toLowerCase() === n.toLowerCase()); return p ? p.qty : null; };
+function addItem(type) {
+  const name = $('pn' + type).value.trim(), qty = parseInt($('pq' + type).value, 10);
+  if (!name || !(qty > 0)) return toast('Product aur qty daalein', true);
+  const st = stockOf(name);
+  if (type === 'SALE') {
+    if (st === null) return toast('Ye product stock mein nahi hai', true);
+    const already = carts.SALE.filter(i => i.name.toLowerCase() === name.toLowerCase()).reduce((a, i) => a + i.qty, 0);
+    if (already + qty > st) return toast('Stock kam hai (available ' + st + ')', true);
+  }
+  carts[type].push({ name: st !== null ? stock.find(x => x.name.toLowerCase() === name.toLowerCase()).name : name, qty });
+  renderForm(type); $('pn' + type).focus();
+}
+function rmItem(type, n) { carts[type].splice(n, 1); renderForm(type); }
+
+async function save(type) {
+  const btn = $('save' + type); btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const j = await api('save', { type, party: ($('party' + type).value || '').trim(), items: carts[type] });
+    stock = j.stock; fillList(); lastBill = j; carts[type] = []; $(type === 'SALE' ? 'v-sale' : 'v-purchase')._party = '';
+    renderForm(type); renderStock();
+    $('dTitle').textContent = (type === 'SALE' ? 'Sale' : 'Purchase') + ' Saved ✓';
+    $('dInfo').textContent = j.billNo + ' • ' + j.date + ' ' + j.time;
+    $('done').classList.add('show');
+  } catch (e) { toast(e.message, true); renderForm(type); }
+}
+function closeDone() { $('done').classList.remove('show'); }
+
+/* ---------- History ---------- */
+async function loadHist() {
+  try {
+    const j = await api('history');
+    $('hBody').innerHTML = j.history.map(h => `<tr><td><b>${esc(h.bill)}</b><br><span class="hint">${esc(h.date)} ${esc(h.time)}</span></td><td>${esc(h.product)}${h.party ? `<br><span class="hint">${esc(h.party)}</span>` : ''}</td><td class="n ${h.type === 'SALE' ? 'low' : 'ok'}">${h.type === 'SALE' ? '-' : '+'}${esc(h.qty)}</td></tr>`).join('');
+    $('hEmpty').style.display = j.history.length ? 'none' : 'block';
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ---------- PDF ---------- */
+function header(doc, title, rightLines) {
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFillColor(11, 37, 69); doc.rect(0, 0, W, 34, 'F');
+  doc.setFillColor(212, 167, 44); doc.rect(0, 34, W, 1.6, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text(COMPANY, 14, 16);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(212, 167, 44); doc.text('INVENTORY MANAGEMENT SYSTEM', 14, 23);
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(title, W - 14, 16, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  rightLines.forEach((l, i) => doc.text(l, W - 14, 22 + i * 5, { align: 'right' }));
+  doc.setTextColor(30);
+}
+function footer(doc) {
+  const n = doc.getNumberOfPages(), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.line(14, H - 14, W - 14, H - 14);
+    doc.text(COMPANY + ' • Computer generated', 14, H - 9); doc.text('Page ' + i + ' / ' + n, W - 14, H - 9, { align: 'right' }); }
+}
+const tableStyle = { theme: 'grid', headStyles: { fillColor: [11, 37, 69], textColor: 255 }, alternateRowStyles: { fillColor: [244, 246, 250] }, styles: { fontSize: 10 } };
+
+function billDoc(b) {
+  const doc = new jspdf.jsPDF({ unit: 'mm', format: 'a4' }), sale = b.type === 'SALE';
+  header(doc, sale ? 'SALE BILL' : 'PURCHASE BILL', ['Bill No: ' + b.billNo, 'Date: ' + b.date, 'Time: ' + b.time]);
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text((sale ? 'Customer: ' : 'Supplier: ') + (b.party || '-'), 14, 46);
+  const total = b.items.reduce((a, i) => a + i.qty, 0);
+  doc.autoTable({ ...tableStyle, startY: 52, head: [['#', 'Product', 'Qty']],
+    body: b.items.map((i, n) => [n + 1, i.name, i.qty]), foot: [['', 'Total Quantity', total]],
+    footStyles: { fillColor: [212, 167, 44], textColor: 20 }, columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'right', cellWidth: 30 } } });
+  footer(doc); return doc;
+}
+function stockDoc() {
+  const doc = new jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const d = new Date(), tz = { timeZone: 'Asia/Karachi' };
+  const date = d.toLocaleDateString('en-GB', { ...tz, day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+  const time = d.toLocaleTimeString('en-US', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  header(doc, 'STOCK REPORT', ['Date: ' + date, 'Time: ' + time]);
+  doc.autoTable({ ...tableStyle, startY: 44, head: [['#', 'Product', 'Available Qty']],
+    body: stock.map((p, n) => [n + 1, p.name, p.qty]), foot: [['', 'Total (' + stock.length + ' products)', stock.reduce((a, p) => a + p.qty, 0)]],
+    footStyles: { fillColor: [212, 167, 44], textColor: 20 }, columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'right', cellWidth: 40 } },
+    didParseCell: h => { if (h.section === 'body' && h.column.index === 2 && h.cell.raw <= 5) { h.cell.styles.textColor = [200, 30, 30]; h.cell.styles.fontStyle = 'bold'; } } });
+  footer(doc); return { doc, name: 'Stock_Report_' + date + '.pdf' };
+}
+async function stockPDF() {
+  await loadStock(); if (!stock.length) return toast('Stock khali hai', true);
+  const r = stockDoc(); r.doc.save(r.name);
+}
+const billName = b => (b.type === 'SALE' ? 'Sale_' : 'Purchase_') + b.billNo + '.pdf';
+function dlBill() { billDoc(lastBill).save(billName(lastBill)); }
+async function shareBill() {
+  const blob = billDoc(lastBill).output('blob'), f = new File([blob], billName(lastBill), { type: 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], title: COMPANY + ' ' + lastBill.billNo }); } catch (e) {} }
+  else dlBill();
+}
+
+/* ---------- Settings / init ---------- */
+function saveCfg() {
+  cfg.url = $('cfgUrl').value.trim(); cfg.key = $('cfgKey').value.trim();
+  localStorage.setItem('at_url', cfg.url); localStorage.setItem('at_key', cfg.key);
+  go('stock');
+}
+$('cfgUrl').value = cfg.url; $('cfgKey').value = cfg.key;
+go(cfg.url ? 'stock' : 'set');
+timer = setInterval(() => { if (view === 'stock' && !document.hidden) loadStock(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && view === 'stock') loadStock(); });
+</script>
+</body>
+</html>
