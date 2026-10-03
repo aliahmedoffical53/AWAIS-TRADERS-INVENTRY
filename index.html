@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AWAIS TRADERS">
 <title>AWAIS TRADERS Inventory Management System</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#e6edf3;--mut:#8b949e;--pri:#238636;--pri2:#2ea043;--acc:#58a6ff;--red:#f85149;--gold:#d4a72c;--in:#0d1117}
 @media(prefers-color-scheme:light){:root{--bg:#f6f8fa;--card:#fff;--line:#d0d7de;--tx:#1f2328;--mut:#59636e;--acc:#0969da;--red:#cf222e;--gold:#9a6700;--in:#fff}}
@@ -114,7 +114,12 @@ th{color:var(--mut);font-size:12px;font-weight:600}td.n,th.n{text-align:right}
 const COMPANY = 'AWAIS TRADERS';
 const APP = 'AWAIS TRADERS INVENTORY MANAGEMENT SYSTEM';
 const $ = id => document.getElementById(id);
-let cfg = { url: localStorage.getItem('at_url') || '', key: localStorage.getItem('at_key') || '' };
+/* ===== YAHAN APNA URL (aur chahein to password) LIKH DEN =====
+   Web App URL:  const DEFAULT_URL = 'https://script.google.com/macros/s/XXXX/exec';
+   Password:     const DEFAULT_KEY = '';   (khali rakhna behtar hai, neeche note dekhen) */
+const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbwKLsRGNwykLOxZlLJMEtTUy_AjYt6VP5NmqlOpyrEaPx0c4v1VZZdyi4NmIYcOSo6qiw/exec';
+const DEFAULT_KEY = '';
+let cfg = { url: DEFAULT_URL || localStorage.getItem('at_url') || '', key: DEFAULT_KEY || localStorage.getItem('at_key') || '' };
 let stock = [], carts = { SALE: [], PURCHASE: [] }, lastBill = null, view = 'stock', timer;
 
 /* ---------- API ---------- */
@@ -157,9 +162,12 @@ function sortStock(arr) {
 }
 
 /* ---------- Stock ---------- */
+let busy = false;
 async function loadStock(manual) {
-  try { const j = await api('stock'); stock = sortStock(j.stock); $('dot').className = 'dot on'; renderStock(); fillList(); if (manual) toast('Stock updated'); }
+  if (busy) return; busy = true;
+  try { const j = await api('stock'); stock = sortStock(j.stock); localStorage.setItem('at_stock', JSON.stringify(stock)); $('dot').className = 'dot on'; renderStock(); fillList(); if (manual) toast('Stock updated'); }
   catch (e) { $('dot').className = 'dot err'; if (manual || !stock.length) toast(e.message, true); }
+  busy = false;
 }
 function renderStock() {
   const q = $('q').value.toLowerCase();
@@ -208,7 +216,7 @@ async function save(type) {
   const btn = $('save' + type); btn.disabled = true; btn.textContent = 'Saving...';
   try {
     const j = await api('save', { type, party: ($('party' + type).value || '').trim(), items: carts[type] });
-    stock = sortStock(j.stock); fillList(); lastBill = j; carts[type] = []; $(type === 'SALE' ? 'v-sale' : 'v-purchase')._party = '';
+    stock = sortStock(j.stock); localStorage.setItem('at_stock', JSON.stringify(stock)); fillList(); lastBill = j; carts[type] = []; $(type === 'SALE' ? 'v-sale' : 'v-purchase')._party = '';
     renderForm(type); renderStock();
     $('dTitle').textContent = (type === 'SALE' ? 'Sale' : 'Purchase') + ' Saved ✓';
     $('dInfo').textContent = j.billNo + ' • ' + j.date + ' ' + j.time;
@@ -268,8 +276,11 @@ function stockDoc() {
   footer(doc); return { doc, name: 'Stock_Report_' + date + '.pdf' };
 }
 async function stockPDF() {
-  await loadStock(); if (!stock.length) return toast('Stock khali hai', true);
-  const r = stockDoc(); r.doc.save(r.name);
+  if (!window.jspdf) return toast('PDF library load ho rahi hai, 2 sec baad dobara dabayen', true);
+  if (!stock.length) await loadStock();
+  if (!stock.length) return toast('Stock khali hai', true);
+  toast('PDF ban rahi hai...');
+  setTimeout(() => { const r = stockDoc(); r.doc.save(r.name); }, 30);
 }
 const billName = b => (b.type === 'SALE' ? 'Sale_' : 'Purchase_') + b.billNo + '.pdf';
 function dlBill() { billDoc(lastBill).save(billName(lastBill)); }
@@ -288,13 +299,16 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigato
 
 /* ---------- Settings / init ---------- */
 function saveCfg() {
-  cfg.url = $('cfgUrl').value.trim(); cfg.key = $('cfgKey').value.trim();
+  cfg.url = DEFAULT_URL || $('cfgUrl').value.trim(); cfg.key = DEFAULT_KEY || $('cfgKey').value.trim();
   localStorage.setItem('at_url', cfg.url); localStorage.setItem('at_key', cfg.key);
   go('stock');
 }
 $('cfgUrl').value = cfg.url; $('cfgKey').value = cfg.key;
-go(cfg.url ? 'stock' : 'set');
-timer = setInterval(() => { if (view === 'stock' && !document.hidden) loadStock(); }, 15000);
+try { stock = sortStock(JSON.parse(localStorage.getItem('at_stock') || '[]')); renderStock(); fillList(); } catch (e) {}
+if (DEFAULT_URL) { $('cfgUrl').previousElementSibling.style.display = 'none'; $('cfgUrl').style.display = 'none'; }
+if (DEFAULT_KEY) { $('cfgKey').previousElementSibling.style.display = 'none'; $('cfgKey').style.display = 'none'; }
+go(cfg.url && cfg.key ? 'stock' : 'set');
+timer = setInterval(() => { if (view === 'stock' && !document.hidden) loadStock(); }, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && view === 'stock') loadStock(); });
 </script>
 </body>
